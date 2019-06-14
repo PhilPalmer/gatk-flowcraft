@@ -52,7 +52,7 @@ class Help {
         println ""
         println ""
         println "Usage: "
-        println "    nextflow run gatk.nf"
+        println "    nextflow run main.nf"
         println ""
         println "       --fastq                     Path expression to paired-end fastq files. (default: $params.fastq) "
         println "       --adapters                  Path to adapters files, if any. (fastqc)"
