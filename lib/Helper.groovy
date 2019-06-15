@@ -55,7 +55,6 @@ class Help {
         println "    nextflow run main.nf"
         println ""
         println "       --fastq                     Path expression to paired-end fastq files. (default: $params.fastq) "
-        println "       --adapters                  Path to adapters files, if any. (fastqc)"
         println "       --bwaIndex                  Specifies the reference indexes to be provided to bwa. (bwa)"
         println "       --reference                 Specifies the reference genome to be provided to GATK HaplotypeCaller. (haplotypecaller)"
         println "       --intervals                 Interval list file to specify the regions to call variants. (haplotypecaller)"
