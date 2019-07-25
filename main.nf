@@ -60,17 +60,17 @@ IN_fastq_raw.set{ hisat2_in_1_0 }
 
 if (params.reference) {
     Channel
-        .fromPath(params.reference)
+        .fromPath("${params.reference}.fasta")
         .ifEmpty { exit 1, "FASTA annotation file not found: ${params.reference}" }
         .set { hisat2Fasta_1_1 }
 } else if (params.hisat2_index) {
     Channel
-        .fromPath("${params.hisat2_index}.fasta")
+        .fromPath(params.hisat2_index)
         .ifEmpty { exit 1, "Folder containing Hisat2 indexes for reference genome not found: ${params.hisat2_index}" }
         .set { hisat2Index_1_1 }
     hisat2IndexName_1_1 = Channel.value( "${params.hisat2_index_name}" )
 } else {
-    exit 1, "Please specify either `--reference /path/to/file/baseName` OR `--hisat2_index /path/to/hisat2_index_folder` AND `--hisat2_index_name hisat2_index_folder/basename`"
+    exit 1, "Please specify either `--reference /path/to/file_basename` OR `--hisat2_index /path/to/hisat2_index_folder` AND `--hisat2_index_name hisat2_index_folder/basename`"
 }
 
 if (!params.hisat2_index) {
