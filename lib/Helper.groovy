@@ -6,7 +6,7 @@ class Help {
         println "============================================================"
         println "                F L O W C R A F T"
         println "============================================================"
-        println "Built using flowcraft v1.4.1"
+        println "Built using flowcraft v1.4.2"
         println ""
         if (info.containsKey("fastq")){
         int nsamples = info.fastq / 2
@@ -48,15 +48,16 @@ class Help {
         println "============================================================"
         println "                F L O W C R A F T"
         println "============================================================"
-        println "Built using flowcraft v1.4.1"
+        println "Built using flowcraft v1.4.2"
         println ""
         println ""
         println "Usage: "
         println "    nextflow run main.nf"
         println ""
         println "       --fastq                     Path expression to paired-end fastq files. (default: $params.fastq) "
-        println "       --bwaIndex                  Specifies the reference indexes to be provided to bwa. (bwa)"
-        println "       --reference                 Specifies the reference genome to be provided to GATK HaplotypeCaller. (haplotypecaller)"
+        println "       --reference                 Specifies the reference genome to be provided to HISAT2. (hisat2;haplotypecaller)"
+        println "       --hisat2_index              Specifies the reference indexes to be provided to HISAT2. (hisat2)"
+        println "       --hisat2_index_name         Specifies the reference indexes folder & basename to be provided to HISAT2, eg hisat2_index_folder/basename. (hisat2)"
         println "       --intervals                 Interval list file to specify the regions to call variants. (haplotypecaller)"
         
     }
