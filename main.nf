@@ -55,38 +55,104 @@ IN_fastq_raw = Channel.fromFilePairs(params.fastq).ifEmpty { exit 1, "No fastq f
 
 // Placeholder to fork the raw input channel
 
-IN_fastq_raw.set{ bwa_in_1_0 }
+IN_fastq_raw.set{ hisat2_in_1_0 }
 
 
-bwaIndexId_1_1 = Channel.value(params.bwaIndex.split("/").last())
-bwaIndex_1_1 = Channel.fromPath("${params.bwaIndex}.*").collect().toList()
+if (params.reference) {
+    Channel
+        .fromPath(params.reference)
+        .ifEmpty { exit 1, "FASTA annotation file not found: ${params.reference}" }
+        .set { hisat2Fasta_1_1 }
+} else if (params.hisat2_index) {
+    Channel
+        .fromPath(params.hisat2_index)
+        .ifEmpty { exit 1, "Folder containing Hisat2 indexes for reference genome not found: ${params.hisat2_index}" }
+        .set { hisat2Index_1_1 }
+    hisat2IndexName_1_1 = Channel.value( "${params.hisat2_index_name}" )
+} else {
+    exit 1, "Please specify either `--reference /path/to/file.fasta` OR `--hisat2_index /path/to/hisat2_index_folder` AND `--hisat2_index_name hisat2_index_folder/basename`"
+}
 
-process bwa_1_1 {
+if (!params.hisat2_index) {
+  process make_hisat2_index_1_1 {
 
         if ( params.platformHTTP != null ) {
         beforeScript "PATH=${workflow.projectDir}/bin:\$PATH; export PATH; set_dotfiles.sh; startup_POST.sh $params.projectId $params.pipelineId 1_1 $params.platformHTTP"
-        afterScript "final_POST.sh $params.projectId $params.pipelineId 1_1 $params.platformHTTP; report_POST.sh $params.projectId $params.pipelineId 1_1 $params.sampleName $params.reportHTTP $params.currentUserName $params.currentUserId bwa_1_1 \"$params.platformSpecies\" true"
+        afterScript "final_POST.sh $params.projectId $params.pipelineId 1_1 $params.platformHTTP; report_POST.sh $params.projectId $params.pipelineId 1_1 $params.sampleName $params.reportHTTP $params.currentUserName $params.currentUserId hisat2_1_1 \"$params.platformSpecies\" true"
     } else {
         beforeScript "PATH=${workflow.projectDir}/bin:\$PATH; set_dotfiles.sh"
         }
-
-    publishDir "results/mapping/bwa_1_1"
+    tag "$fasta"
 
     input:
-    set sample_id, file(fastq_pair) from bwa_in_1_0
-    each index from bwaIndexId_1_1
-    each file(index_file) from bwaIndex_1_1
-   
+    each file(fasta) from hisat2Fasta_1_1
+
     output:
-    set sample_id, file("${sample_id}.bam"), file("${sample_id}.bam.bai") into bwa_out_1_0
-    set sample_id, val("1_1_bwa"), file(".status"), file(".warning"), file(".fail"), file(".command.log") into STATUS_bwa_1_1
-set sample_id, val("bwa_1_1"), val("1_1"), file(".report.json"), file(".versions"), file(".command.trace") into REPORT_bwa_1_1
+    val "hisat2_index/${fasta.baseName}.hisat2_index" into hisat2IndexName_1_1
+    file "hisat2_index" into hisat2Index_1_1
+
+    """
+    mkdir hisat2_index
+    hisat2-build -p ${task.cpus} $fasta hisat2_index/${fasta.baseName}.hisat2_index
+    """
+  }
+}
+
+process hisat2_1_1 {
+
+        if ( params.platformHTTP != null ) {
+        beforeScript "PATH=${workflow.projectDir}/bin:\$PATH; export PATH; set_dotfiles.sh; startup_POST.sh $params.projectId $params.pipelineId 1_1 $params.platformHTTP"
+        afterScript "final_POST.sh $params.projectId $params.pipelineId 1_1 $params.platformHTTP; report_POST.sh $params.projectId $params.pipelineId 1_1 $params.sampleName $params.reportHTTP $params.currentUserName $params.currentUserId hisat2_1_1 \"$params.platformSpecies\" true"
+    } else {
+        beforeScript "PATH=${workflow.projectDir}/bin:\$PATH; set_dotfiles.sh"
+        }
+    tag "$sample_id"
+
+    input:
+    set sample_id, file(fastq_pair) from hisat2_in_1_0
+    each index_name from hisat2IndexName_1_1
+    each file(index) from hisat2Index_1_1
+
+    output:
+    set sample_id, file("${sample_id}.sam") into  hisat2Sam_1_1
+    set sample_id, val("1_1_hisat2"), file(".status"), file(".warning"), file(".fail"), file(".command.log") into STATUS_hisat2_1_1
+set sample_id, val("hisat2_1_1"), val("1_1"), file(".report.json"), file(".versions"), file(".command.trace") into REPORT_hisat2_1_1
 file ".versions"
 
     """
-    bwa mem -M -R '@RG\\tID:${sample_id}\\tSM:${sample_id}\\tPL:Illumina' -t $task.cpus $index $fastq_pair > ${sample_id}.sam
-    samtools sort -o ${sample_id}.bam -O BAM ${sample_id}.sam
-    samtools index ${sample_id}.bam
+    hisat2 \
+    -p ${task.cpus} \
+    -x $index_name \
+    -1 ${fastq_pair[0]} \
+    -2 ${fastq_pair[1]} \
+    -S ${sample_id}.sam
+    """
+}
+
+process samtools_sort_1_1 {
+
+        if ( params.platformHTTP != null ) {
+        beforeScript "PATH=${workflow.projectDir}/bin:\$PATH; export PATH; set_dotfiles.sh; startup_POST.sh $params.projectId $params.pipelineId 1_1 $params.platformHTTP"
+        afterScript "final_POST.sh $params.projectId $params.pipelineId 1_1 $params.platformHTTP; report_POST.sh $params.projectId $params.pipelineId 1_1 $params.sampleName $params.reportHTTP $params.currentUserName $params.currentUserId hisat2_1_1 \"$params.platformSpecies\" true"
+    } else {
+        beforeScript "PATH=${workflow.projectDir}/bin:\$PATH; set_dotfiles.sh"
+        }
+    publishDir "results/mapping/hisat2_1_1"
+    tag "$sample_id"
+
+    input:
+    set sample_id, file(sam) from hisat2Sam_1_1
+
+    output: 
+    set sample_id, file("${sample_id}.sorted.bam"), file("${sample_id}.sorted.bam.bai") into hisat2_out_1_0
+    set sample_id, val("1_1_samtools_sort"), file(".status"), file(".warning"), file(".fail"), file(".command.log") into STATUS_samtools_sort_1_1
+set sample_id, val("samtools_sort_1_1"), val("1_1"), file(".report.json"), file(".versions"), file(".command.trace") into REPORT_samtools_sort_1_1
+file ".versions"
+
+    """
+    samtools view -Sb $sam > ${sample_id}.bam
+    samtools sort -T ${sample_id}.bam.tmp ${sample_id}.bam -o ${sample_id}.sorted.bam
+    samtools index ${sample_id}.sorted.bam
     """
 }
 
@@ -101,7 +167,7 @@ process mark_duplicates_1_2 {
         }
 
     input:
-    set sample_id, file(bam), file(bai) from bwa_out_1_0
+    set sample_id, file(bam), file(bai) from hisat2_out_1_0
    
     output:
     set val(sample_id), file("${sample_id}_mark_dup.bam"), file("${sample_id}_mark_dup.bai") into mark_duplicates_out_1_1
@@ -212,7 +278,7 @@ process status {
     publishDir "pipeline_status/$task_name"
 
     input:
-    set sample_id, task_name, status, warning, fail, file(log) from STATUS_bwa_1_1.mix(STATUS_mark_duplicates_1_2,STATUS_haplotypecaller_1_3,STATUS_merge_vcfs_1_3)
+    set sample_id, task_name, status, warning, fail, file(log) from STATUS_hisat2_1_1.mix(STATUS_samtools_sort_1_1,STATUS_mark_duplicates_1_2,STATUS_haplotypecaller_1_3,STATUS_merge_vcfs_1_3)
 
     output:
     file '*.status' into master_status
@@ -281,7 +347,7 @@ process report {
             pid,
             report_json,
             version_json,
-            trace from REPORT_bwa_1_1.mix(REPORT_mark_duplicates_1_2,REPORT_haplotypecaller_1_3,REPORT_merge_vcfs_1_3)
+            trace from REPORT_hisat2_1_1.mix(REPORT_samtools_sort_1_1,REPORT_mark_duplicates_1_2,REPORT_haplotypecaller_1_3,REPORT_merge_vcfs_1_3)
 
     output:
     file "*" optional true into master_report
@@ -291,6 +357,40 @@ process report {
     """
 
 }
+
+File forkTree = new File("${workflow.projectDir}/.forkTree.json")
+File treeDag = new File("${workflow.projectDir}/.treeDag.json")
+File js = new File("${workflow.projectDir}/resources/main.js.zip")
+
+
+forks_channel = forkTree.exists() ?  Channel.fromPath("${workflow.projectDir}/.forkTree.json") : Channel.value(null)
+dag_channel = forkTree.exists() ?  Channel.fromPath("${workflow.projectDir}/.treeDag.json") : Channel.value(null)
+js_channel = forkTree.exists() ?  Channel.fromPath("${workflow.projectDir}/resources/main.js.zip") : Channel.value(null)
+
+process compile_reports {
+
+    publishDir "pipeline_report/", mode: "copy"
+
+    if ( params.reportHTTP != null ){
+        beforeScript "PATH=${workflow.projectDir}/bin:\$PATH; export PATH;"
+        afterScript "metadata_POST.sh $params.projectId $params.pipelineId 0 $params.sampleName $params.reportHTTP $params.currentUserName $params.currentUserId 0 \"$params.platformSpecies\""
+    }
+
+   input:
+   file report from master_report.collect()
+   file forks from forks_channel
+   file dag from dag_channel
+   file js from js_channel
+
+    output:
+    file "pipeline_report.json"
+    file "pipeline_report.html"
+    file "src/main.js"
+
+    script:
+    template "compile_reports.py"
+}
+
 
 workflow.onComplete {
   // Display complete message
