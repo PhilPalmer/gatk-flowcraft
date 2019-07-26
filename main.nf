@@ -195,13 +195,6 @@ interval_1_3 = Channel.fromPath(params.intervals)
 
 process haplotypecaller_1_3 {
 
-        if ( params.platformHTTP != null ) {
-        beforeScript "PATH=${workflow.projectDir}/bin:\$PATH; export PATH; set_dotfiles.sh; startup_POST.sh $params.projectId $params.pipelineId 1_3 $params.platformHTTP"
-        afterScript "final_POST.sh $params.projectId $params.pipelineId 1_3 $params.platformHTTP; report_POST.sh $params.projectId $params.pipelineId 1_3 $params.sampleName $params.reportHTTP $params.currentUserName $params.currentUserId haplotypecaller_1_3 \"$params.platformSpecies\" true"
-    } else {
-        beforeScript "PATH=${workflow.projectDir}/bin:\$PATH; set_dotfiles.sh"
-        }
-
     tag "$interval"
 
     input:
